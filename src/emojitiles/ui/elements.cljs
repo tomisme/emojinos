@@ -1,10 +1,8 @@
-(ns emojitiles.dev.emojis
+(ns emojinos.ui.elements
   (:require
-   [devcards.core])
-  (:require-macros
-   [devcards.core :refer [defcard defcard-rg]]))
+   [emojinos.core :refer [board-edges]]))
 
-(defn prevent-default [e]
+(defn- prevent-default [e]
   (.preventDefault e))
 
 (defn tile-el
@@ -40,59 +38,6 @@
                    :user-select "none"
                    :-moz-user-select "none"}}
      content]]])
-
-(defcard-rg tile-test
-  (into [:div {:style {:display "flex"
-                       :flex-wrap "wrap"}}]
-        (for [x ["💓" "💞" "🍇" "🌱" "🌧️" "🌻" "🍄" "🔥" "🌷" "🍚"]]
-          [:div {:style {:margin 5}}
-           (tile-el {:content x})])))
-
-(defn filled-positions
-  [board]
-  (into #{}
-        (map (fn [[_ x y]]
-               [x y])
-             board)))
-
-(defn pos-neighbors
-  [x y]
-  #{[(inc x) y]
-    [x (inc y)]
-    [(dec x) y]
-    [x (dec y)]})
-
-(defn board-edges
-  [board]
-  (let [filled (filled-positions board)]
-    (reduce
-     (fn [board-edges [_ x y]]
-       (loop [to-check (seq (pos-neighbors x y))
-              empty-neighbors #{}]
-           (if (empty? to-check)
-             (into board-edges empty-neighbors)
-             (let [checking (first to-check)]
-               (recur (rest to-check)
-                      (if (contains? filled checking)
-                        empty-neighbors
-                        (conj empty-neighbors checking)))))))
-     #{}
-     board)))
-
-(def s1
-  {:board #{["🍚" 0 0]
-            ["🌷" 0 -1]
-            ["🍇" -1 0]
-            ["🍇" -2 0]}
-   :p1 ["🍚" "💞" "🍇" "🌱" "🌱"]
-   :p2 ["🌻" "🍇" "🌱" "🌱" "🌱"]
-   :bag ["🌧️" "🌻" "🍄"]})
-
-(defcard board-details
-  (let [b (:board s1)]
-    {'board b
-     'filled-positions (filled-positions b)
-     'board-edges (board-edges b)}))
 
 (defn board-el
   [board]
@@ -135,9 +80,3 @@
                                  :movable? yours?
                                  :hand-index idx})])
                      hand)))
-
-(defcard-rg game-test
-  [:div
-   (hand-el (:p2 s1) false)
-   (board-el (:board s1))
-   (hand-el (:p1 s1) true)])

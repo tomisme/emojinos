@@ -1,4 +1,4 @@
-(ns emojitiles.dev.sputter
+(ns dev.sputter
   (:require
    [sputter.vm])
   (:require-macros
