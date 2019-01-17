@@ -1,28 +1,32 @@
 (ns emojinos.ui.elements
   (:require
-   [emojinos.core :refer [board-edges]]))
+   [emojinos.game :refer [board-edges]]))
 
 (defn- prevent-default [e]
   (.preventDefault e))
 
 (defn tile-el
-  [{:keys [content board-x board-y hand-index movable? edge?]}]
-  [:div {:draggable movable?
+  [{:keys [emoji hand-index playable? target? on-drop!]}]
+  [:div {:draggable playable?
          :on-drag-over prevent-default
          :on-drag-enter prevent-default
          :on-drag-start #(-> %
                              .-dataTransfer
                              (.setData "text/plain" hand-index))
-         :on-drop #(let [hand-index (-> %
-                                        .-dataTransfer
-                                        (.getData "text/plain")
-                                        int)]
-                     (do
-                      (prevent-default %)
-                      (js/console.log hand-index board-x board-y)))
+         :on-drop (fn [e]
+                    (when target?
+                      (let [hand-index (-> e
+                                           .-dataTransfer
+                                           (.getData "text/plain")
+                                           int)]
+                        (do
+                         (prevent-default e)
+                         (on-drop! hand-index)))))
          :style {:display "flex"
-                 :cursor (if movable? "grab")
-                 :opacity (if edge? 0.1 1)
+                 :user-select "none"
+                 :-moz-user-select "none"
+                 :cursor (if playable? "grab")
+                 :opacity (if target? 0.1 1)
                  :background "white"
                  :justify-content "center"
                  :border "2px solid"
@@ -30,17 +34,13 @@
                  :border-radius 15
                  :width 70
                  :height 70}}
-   [:div {:style {:margin-top 5
-                  :display "flex"
+   [:div {:style {:margin-top 9
                   :align-items "center"
                   :font-size 40}}
-    [:div {:style {
-                   :user-select "none"
-                   :-moz-user-select "none"}}
-     content]]])
+    emoji]])
 
 (defn board-el
-  [board]
+  [{:keys [board place-tile!]}]
   (let [tile-x-offsets (map (fn [[_ dx _]] dx) board)
         tile-y-offsets (map (fn [[_ _ dy]] dy) board)
         min-dx (js/Math.abs (apply min tile-x-offsets))
@@ -49,34 +49,46 @@
         max-dy (apply max tile-y-offsets)
         board-width (+ 3 min-dx max-dx)
         board-height (+ 3 min-dy max-dy)
-        offset-px 78]
+        ->px #(* % 78)]
     (into [:div {:style {:position "relative"
-                         :width (* offset-px board-width)
-                         :height (* offset-px board-height)}}]
-          (into (for [[tile dx dy] board]
+                         :width (->px board-width)
+                         :height (->px board-height)}}]
+          (into (for [[emoji dx dy] board]
                   [:div {:style {:position "absolute"
-                                 :left (+ (* dx offset-px)
-                                          (* (inc min-dx) offset-px))
-                                 :bottom (+ (* dy offset-px)
-                                            (* (inc min-dy) offset-px))}}
-                   (tile-el {:content tile})])
+                                 :left (+ (->px dx)
+                                          (->px (inc min-dx)))
+                                 :bottom (+ (->px dy)
+                                            (->px (inc min-dy)))}}
+                   (tile-el {:emoji emoji})])
                 (for [[dx dy] (board-edges board)]
                   [:div {:style {:position "absolute"
-                                 :left (+ (* dx offset-px)
-                                          (* (inc min-dx) offset-px))
-                                 :bottom (+ (* dy offset-px)
-                                            (* (inc min-dy) offset-px))}}
-                   (tile-el {:edge? true
-                             :board-x dx
-                             :board-y dy})])))))
+                                 :left (+ (->px dx)
+                                          (->px (inc min-dx)))
+                                 :bottom (+ (->px dy)
+                                            (->px (inc min-dy)))}}
+                   (tile-el {:target? true
+                             :on-drop! #(place-tile! % dx dy)})])))))
 
 (defn hand-el
-  [hand yours?]
-  (into [:div {:style {:display "inline-flex"
-                       :margin "10px 0"}}]
-        (map-indexed (fn [idx tile]
+  [hand playable?]
+  (into [:div {:style {:display "flex"
+                       :margin-bottom 15}}]
+        (map-indexed (fn [idx emoji]
                       [:div {:style {:margin 2}}
-                       (tile-el {:content tile
-                                 :movable? yours?
+                       (tile-el {:emoji emoji
+                                 :playable? playable?
                                  :hand-index idx})])
                      hand)))
+
+(defn points-el
+  [i]
+  [:div {:style {:font-size 50
+                 :font-weight 600
+                 :margin "10px 20px 0 20px"}}
+   i])
+
+(defn player-zone-el
+  [& children]
+  (into [:div {:style {:display "flex"
+                       :justify-content "space-between"}}]
+        children))

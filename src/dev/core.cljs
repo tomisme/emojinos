@@ -1,7 +1,6 @@
 (ns dev.core
   (:require
-   [devcards.core] ;; TODO why is this needed?
-   [reagent.core] ;; TODO why is this needed?
+   [devcards.core]
    [dev.emojis]
    [dev.sputter]))
 

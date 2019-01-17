@@ -1,7 +1,7 @@
 (ns dev.emojis
   (:require
    [devcards.core]
-   [emojinos.core :refer [filled-positions board-edges]]
+   [emojinos.game :refer [filled-positions board-edges]]
    [emojinos.ui.elements :refer [tile-el hand-el board-el]]
    [emojinos.ui.frame :refer [ui-component]])
   (:require-macros
@@ -12,7 +12,7 @@
                        :flex-wrap "wrap"}}]
         (for [x ["💓" "💞" "🍇" "🌱" "🌧️" "🌻" "🍄" "🔥" "🌷" "🍚"]]
           [:div {:style {:margin 5}}
-           (tile-el {:content x})])))
+           (tile-el {:emoji x})])))
 
 (def s1
   {:board #{["🍚" 0 0]
@@ -29,11 +29,11 @@
      'filled-positions (filled-positions b)
      'board-edges (board-edges b)}))
 
-(defcard-rg game-test
+(defcard-rg board-test
   [:div
    (hand-el (:p2 s1) false)
-   (board-el (:board s1))
-   (hand-el (:p1 s1) true)])
+   (hand-el (:p1 s1) true)
+   (board-el {:board (:board s1)})])
 
 (defcard-rg frame-test
   [ui-component])
