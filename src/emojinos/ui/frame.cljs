@@ -20,8 +20,8 @@
    (update db :game game/place-tile player hand-index x y)))
 
 (defn place-tile!
-  [player hand-index x y]
-  (dispatch [:place-tile player hand-index x y]))
+  [{:keys [hand-index x y]}]
+  (dispatch [:place-tile :p1 hand-index x y]))
 
 (reg-sub
  :board

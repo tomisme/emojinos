@@ -1,7 +1,7 @@
 (ns dev.emojis
   (:require
    [devcards.core]
-   [emojinos.game :refer [filled-positions board-edges]]
+   [emojinos.game :as game]
    [emojinos.ui.elements :refer [tile-el hand-el board-el]]
    [emojinos.ui.frame :refer [ui-component]])
   (:require-macros
@@ -26,8 +26,7 @@
 (defcard board-details
   (let [b (:board s1)]
     {'board b
-     'filled-positions (filled-positions b)
-     'board-edges (board-edges b)}))
+     'targets (game/targets b)}))
 
 (defcard-rg board-test
   [:div

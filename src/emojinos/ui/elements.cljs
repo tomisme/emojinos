@@ -1,6 +1,6 @@
 (ns emojinos.ui.elements
   (:require
-   [emojinos.game :refer [board-edges]]))
+   [emojinos.game :as game]))
 
 (defn- prevent-default [e]
   (.preventDefault e))
@@ -41,33 +41,36 @@
 
 (defn board-el
   [{:keys [board place-tile!]}]
-  (let [tile-x-offsets (map (fn [[_ dx _]] dx) board)
-        tile-y-offsets (map (fn [[_ _ dy]] dy) board)
-        min-dx (js/Math.abs (apply min tile-x-offsets))
-        max-dx (apply max tile-x-offsets)
-        min-dy (js/Math.abs (apply min tile-y-offsets))
-        max-dy (apply max tile-y-offsets)
-        board-width (+ 3 min-dx max-dx)
-        board-height (+ 3 min-dy max-dy)
+  (let [x-positions (map (fn [[_ x _]] x) board)
+        y-positions (map (fn [[_ _ y]] y) board)
+        max-left (js/Math.abs (apply min x-positions))
+        max-right (apply max x-positions)
+        max-down (js/Math.abs (apply min y-positions))
+        max-up (apply max y-positions)
+        board-width (+ 3 max-left max-right)
+        board-height (+ 3 max-down max-up)
         ->px #(* % 78)]
     (into [:div {:style {:position "relative"
                          :width (->px board-width)
                          :height (->px board-height)}}]
-          (into (for [[emoji dx dy] board]
+          (into (for [[emoji x y] board]
                   [:div {:style {:position "absolute"
-                                 :left (+ (->px dx)
-                                          (->px (inc min-dx)))
-                                 :bottom (+ (->px dy)
-                                            (->px (inc min-dy)))}}
+                                 :left (+ (->px x)
+                                          (->px (inc max-left)))
+                                 :bottom (+ (->px y)
+                                            (->px (inc max-down)))}}
                    (tile-el {:emoji emoji})])
-                (for [[dx dy] (board-edges board)]
+                (for [[x y] (game/targets board)]
                   [:div {:style {:position "absolute"
-                                 :left (+ (->px dx)
-                                          (->px (inc min-dx)))
-                                 :bottom (+ (->px dy)
-                                            (->px (inc min-dy)))}}
+                                 :left (+ (->px x)
+                                          (->px (inc max-left)))
+                                 :bottom (+ (->px y)
+                                            (->px (inc max-down)))}}
                    (tile-el {:target? true
-                             :on-drop! #(place-tile! % dx dy)})])))))
+                             :on-drop! (fn [hand-index]
+                                         (place-tile! {:hand-index hand-index
+                                                       :x x
+                                                       :y y}))})])))))
 
 (defn hand-el
   [hand playable?]
