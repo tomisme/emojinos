@@ -5,6 +5,11 @@
   (:require-macros
    [devcards.core :refer [defcard defcard-rg]]))
 
+;; TODO when should I check this?
+#_(= "stable" (.-signalingState conn))
+
+(def log js/console.log)
+
 (def offer-input-val
  (r/atom ""))
 
@@ -21,35 +26,32 @@
  (fn [db _]
    (-> db :remote :description)))
 
-(reg-event-db
- :got
- (fn [db [_ a b]]
-   (let [_ (js/console.log a b)]
-     db)))
+(reg-sub
+ :connection-str
+ (fn [db _]
+   (-> db :connection str)))
+
+(reg-sub
+ :channel-str
+ (fn [db _]
+   (-> db :channel str)))
 
 (reg-event-db
   :got-remote-description
   (fn [db [_ desc]]
-    (let [
-          local (get-in db [:local :connection])
-          remote (get-in db [:remote :connection])
-          _ (dispatch [:got "remote description sdp:" (.-sdp desc)])]
-      ; (.setLocalDescription remote desc)
-      (.setRemoteDescription local desc)
-      (assoc-in db [:remote :description] (.-sdp desc))
-      db)))
+    (let [conn (get-in db [:connection])]
+      (log "remote description:" desc)
+      (.setRemoteDescription conn desc)
+      (assoc-in db [:remote :description] (.-sdp desc)))))
 
 (reg-event-db
   :got-local-description
   (fn [db [_ desc]]
-    (let [
-          local (get-in db [:local :connection])
-          ; remote (get-in db [:remote :connection])
-          _ (dispatch [:got "local description sdp:" (.-sdp desc)])]
-      (.setLocalDescription local desc)
-      ; (.setRemoteDescription remote desc)
-      ; (.createAnswer remote #(dispatch [:got-remote-description %]) #())
-      (assoc-in db [:local :description] (.-sdp desc)))))
+    (let [conn (get-in db [:connection])]
+      (log "local description:" desc)
+      ;; ICE gathering doesn't start until this?:
+      (.setLocalDescription conn desc)
+      db)))
 
 (reg-event-db
  :p2-handle-offer
@@ -64,70 +66,138 @@
 (reg-event-db
  :p2-create-answer
  (fn [db _]
-   (let [remote (get-in db [:remote :connection])]
-     (.createAnswer remote #(dispatch [:got-local-description %]) #()))))
+   (let [conn (get-in db [:connection])
+         success-fn #(dispatch [:got-local-description %])
+         failure-fn #(log "failed to create answer" %)]
+     (log "creating an answer" conn)
+     (.createAnswer conn success-fn failure-fn)
+     db)))
 
 (reg-event-db
  :p1-handle-answer
- (fn [db [_ desc]]
-   (let [])))
+ (fn [db _]
+   (let [answer-text @answer-input-val
+         desc (js/RTCSessionDescription. #js {:type "answer"
+                                              :sdp answer-text})]
+     (dispatch [:got-remote-description desc])
+     db)))
+
 
 (reg-event-db
  :p1-create-offer
  (fn [db _]
-   (let [
-         local (get-in db [:local :connection])
-         ; remote (get-in db [:remote :connection])
+   (let [conn (get-in db [:connection])
          success-fn #(dispatch [:got-local-description %])
-         failure-fn #(dispatch [:got "failed to create offer:" %])]
-      (.createOffer local success-fn failure-fn)
+         failure-fn #(log "failed to create offer:" %)]
+      (.createOffer conn success-fn failure-fn)
       db)))
 
 (reg-event-db
   :p1-create-channel
   (fn [db _]
-    (let [local (get-in db [:local :connection])
-          ; remote (get-in db [:remote :connection])
-          send-channel (.createDataChannel local "send-data-channel" #js {:ordered true})]
-      (set! (.-onopen send-channel) #(dispatch [:got "send channel opened:" %]))
-      (set! (.-onclose send-channel) #(dispatch [:got "send channel closed:" %]))
-      (set! (.-onerror send-channel) #(dispatch [:got "send channel error:" %]))
-      (set! (.-onmessage send-channel) #(dispatch [:got "send channel message:" %]))
-      ; (set! (.-ondatachannel remote) #(dispatch [:got "got remote channel" %]))
-      (dispatch [:got "new send channel:" send-channel])
-      (dispatch [:got "send channel state:" (.-readyState send-channel)])
+    (let [conn (get-in db [:connection])
+          ch (.createDataChannel conn "send-data-channel" #js {:ordered true})]
+      (set! (.-onopen ch) #(log "send channel opened:" %))
+      (set! (.-onclose ch) #(log "send channel closed:" %))
+      (set! (.-onerror ch) #(log "send channel error:" %))
+      (set! (.-onmessage ch) #(dispatch [:rec-data %]))
+      (log "new send channel:" ch)
+      (log "send channel state:" (.-readyState ch))
       (dispatch [:p1-create-offer])
-      (assoc-in db [:local :channel] send-channel))))
+      (assoc-in db [:channel] ch))))
+
+(reg-event-db
+  :p2-rec-channel
+  (fn [db [_ ch]]
+    (let [conn (get-in db [:connection])]
+      (set! (.-onopen ch) #(log "send channel opened:" %))
+      (set! (.-onclose ch) #(log "send channel closed:" %))
+      (set! (.-onerror ch) #(log "send channel error:" %))
+      (set! (.-onmessage ch) #(dispatch [:rec-data %]))
+      (log "send channel:" ch)
+      (log "send channel state:" (.-readyState ch))
+      (assoc-in db [:channel] ch))))
+
+(reg-event-db
+  :ice-gath-change
+  (fn [db _]
+    (let [conn (get-in db [:connection])
+          gathering-state (.-iceGatheringState conn)]
+      (log "ice gathering state:" gathering-state)
+      (if (= "complete" gathering-state)
+        (do
+         (log "finished ice gathering")
+         (assoc-in db [:local :description] (-> conn .-localDescription .-sdp)))
+        db))))
+
 
 (reg-event-db
   :p1-start
   (fn [db _]
     (let [cfg {"iceServers" [{"urls" "stun:stun.l.google.com:19302"}]}
-          local-conn (js/RTCPeerConnection. (clj->js cfg))]
-          ; remote-conn (js/RTCPeerConnection. (clj->js cfg))]
-      ; (set! (.-onicecandidate local-conn) #(dispatch [:got "local ice candidate:" %]))
-      ; (set! (.-onicecandidate remote-conn) #(dispatch [:got "remote ice candidate:" %]))
+          conn (js/RTCPeerConnection. (clj->js cfg))
+          on-ice-gathering-state-change #(dispatch [:ice-gath-change])]
+      (log "I am P1")
+      (set! (.-onicecandidate conn) log)
+      (set! (.-oniceconnectionstatechange conn) log)
+      (set! (.-onicegatheringstatechange conn) on-ice-gathering-state-change)
       (dispatch [:p1-create-channel])
       (-> db
-        (assoc-in [:local :connection] local-conn)))))
-        ; (assoc-in [:remote :connection] remote-conn)))))
+          (assoc-in [:p1?] true)
+          (assoc-in [:connection] conn)))))
+
+(reg-event-db
+  :p2-start
+  (fn [db _]
+    (let [cfg {"iceServers" [{"urls" "stun:stun.l.google.com:19302"}]}
+          conn (js/RTCPeerConnection. (clj->js cfg))
+          on-ice-gathering-state-change #(dispatch [:ice-gath-change])]
+      (log "I am P2")
+      (set! (.-onicecandidate conn) log)
+      (set! (.-oniceconnectionstatechange conn) log)
+      (set! (.-onicegatheringstatechange conn) on-ice-gathering-state-change)
+      (set! (.-ondatachannel conn) #(dispatch [:p2-rec-channel (.-channel %)]))
+      (-> db
+          (assoc-in [:p1?] false)
+          (assoc-in [:connection] conn)))))
+
+(reg-event-db
+  :send-data
+  (fn [db [_ data]]
+    (let [ch (get-in db [:channel])]
+      (.send ch data)
+      db)))
+
+(reg-event-db
+  :rec-data
+  (fn [db [_ data]]
+    (log "recieved data:" data)
+    (js/window.alert (.-data data))
+    db))
 
 (defn text-input-component
   [val-atom]
-  [:input {:type :text
-           :value @val-atom
-           :on-change #(reset! val-atom (-> % .-target .-value))}])
+  [:textarea {:value (or @val-atom "")
+              :on-change #(reset! val-atom (-> % .-target .-value))}])
 
 (defn test-component
   []
   [:div
    [:p
     [:button {:on-click #(dispatch [:p1-start])}
-      "P1 start"]]
+      "P1 start"]
+    [:button {:on-click #(dispatch [:p2-start])}
+      "P2 start"]]
+   [:p "Connection:"]
+   [:p @(subscribe [:connection-str])]
+   [:p "Channel:"]
+   [:p @(subscribe [:channel-str])]
    [:p "Local Description:"]
-   [:p @(subscribe [:local-description])]
+   [:textarea {:value (or @(subscribe [:local-description])
+                          "")}]
    [:p "Remote Description:"]
-   [:p @(subscribe [:remote-description])]
+   [:textarea {:value (or @(subscribe [:remote-description])
+                          "")}]
    [:p "P2, paste offer below:"]
    [:p
     [text-input-component offer-input-val]]
