@@ -1,9 +1,7 @@
-(ns dev.rtc
+(ns rtc.core
   (:require
    [re-frame.core :as rf :refer [reg-event-db reg-sub dispatch subscribe]]
-   [reagent.core :as r])
-  (:require-macros
-   [devcards.core :refer [defcard defcard-rg]]))
+   [reagent.core :as r]))
 
 ;; TODO when should I check this?
 #_(= "stable" (.-signalingState conn))
@@ -214,5 +212,7 @@
     [:button {:on-click #(dispatch [:send-data "hello!"])}
       "say hello"]]])
 
-(defcard-rg test
-  [test-component])
+(defn ^:export main
+  []
+  (reagent.core/render [test-component]
+                       (.getElementById js/document "app")))
