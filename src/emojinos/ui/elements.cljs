@@ -2,32 +2,43 @@
   (:require
    [emojinos.game :as game]))
 
-(defn- prevent-default [e]
+(defn- prevent-default
+  [e]
   (.preventDefault e))
 
+(defn- hand-tile-drag-start-fn
+  [hand-index]
+  (fn [e]
+    (-> e
+        .-dataTransfer
+        (.setData "text/plain" hand-index))))
+
+(defn- target-on-drop-fn
+  [on-drop!]
+  (fn [e]
+    (let [idx (-> e
+                  .-dataTransfer
+                  (.getData "text/plain")
+                  int)]
+      (do
+       (prevent-default e)
+       (on-drop! idx)))))
+
 (defn tile-el
-  [{:keys [emoji hand-index playable? target? on-drop!]}]
+  [{:keys [emoji hand-index playable? target? on-drop! white?]}]
   [:div {:draggable playable?
          :on-drag-over prevent-default
          :on-drag-enter prevent-default
-         :on-drag-start #(-> %
-                             .-dataTransfer
-                             (.setData "text/plain" hand-index))
-         :on-drop (fn [e]
-                    (when target?
-                      (let [hand-index (-> e
-                                           .-dataTransfer
-                                           (.getData "text/plain")
-                                           int)]
-                        (do
-                         (prevent-default e)
-                         (on-drop! hand-index)))))
+         :on-drag-start (when playable?
+                          (hand-tile-drag-start-fn hand-index))
+         :on-drop (when target?
+                    (target-on-drop-fn on-drop!))
          :style {:display "flex"
                  :user-select "none"
                  :-moz-user-select "none"
-                 :cursor (if playable? "grab")
+                 :cursor (when playable? "grab")
                  :opacity (if target? 0.1 1)
-                 :background "white"
+                 :background (if white? "white" "#262626")
                  :justify-content "center"
                  :border "2px solid"
                  :box-shadow "inset -2px -5px 0 #cab6b6"
@@ -53,13 +64,14 @@
     (into [:div {:style {:position "relative"
                          :width (->px board-width)
                          :height (->px board-height)}}]
-          (into (for [[emoji x y] board]
+          (into (for [[emoji x y white?] board]
                   [:div {:style {:position "absolute"
                                  :left (+ (->px x)
                                           (->px (inc max-left)))
                                  :bottom (+ (->px y)
                                             (->px (inc max-down)))}}
-                   (tile-el {:emoji emoji})])
+                   (tile-el {:emoji emoji
+                             :white? white?})])
                 (for [[x y] (game/targets board)]
                   [:div {:style {:position "absolute"
                                  :left (+ (->px x)
@@ -73,14 +85,15 @@
                                                        :y y}))})])))))
 
 (defn hand-el
-  [hand playable?]
+  [{:keys [hand playable? white?]}]
   (into [:div {:style {:display "flex"
                        :margin-bottom 15}}]
         (map-indexed (fn [idx emoji]
                       [:div {:style {:margin 2}}
                        (tile-el {:emoji emoji
                                  :playable? playable?
-                                 :hand-index idx})])
+                                 :hand-index idx
+                                 :white? white?})])
                      hand)))
 
 (defn points-el

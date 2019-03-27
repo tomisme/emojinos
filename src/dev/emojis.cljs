@@ -12,13 +12,14 @@
                        :flex-wrap "wrap"}}]
         (for [x ["💓" "💞" "🍇" "🌱" "🌧️" "🌻" "🍄" "🔥" "🌷" "🍚"]]
           [:div {:style {:margin 5}}
-           (tile-el {:emoji x})])))
+           (tile-el {:emoji x
+                     :white? (rand-nth [true false])})])))
 
 (def s1
-  {:board #{["🍚" 0 0]
-            ["🌷" 0 -1]
-            ["🍇" -1 0]
-            ["🍇" -2 0]}
+  {:board #{["🍚" 0 0 true]
+            ["🌷" 0 -1 false]
+            ["🍇" -1 0 true]
+            ["🍇" -2 0 false]}
    :p1 ["🍚" "💞" "🍇" "🌱" "🌱"]
    :p2 ["🌻" "🍇" "🌱" "🌱" "🌱"]
    :bag ["🌧️" "🌻" "🍄"]})
@@ -30,8 +31,12 @@
 
 (defcard-rg board-test
   [:div
-   (hand-el (:p2 s1) false)
-   (hand-el (:p1 s1) true)
+   (hand-el {:hand (:p2 s1)
+             :playable? false
+             :white? false})
+   (hand-el {:hand (:p1 s1)
+             :playable? true
+             :white? true})
    (board-el {:board (:board s1)})])
 
 (defcard-rg frame-test

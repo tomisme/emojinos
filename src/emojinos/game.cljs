@@ -43,8 +43,8 @@
   (vec (concat (subvec v 0 index) (subvec v (inc index)))))
 
 (defn place-tile
-  [state player idx x y]
+  [state {:keys [player idx x y]}]
   (let [emoji (get-in state [:p1 :hand idx])]
     (-> state
         (update-in [:p1 :hand] remove-from-vec idx)
-        (update :board conj [emoji x y]))))
+        (update :board conj [emoji x y (= :p1 player)]))))
