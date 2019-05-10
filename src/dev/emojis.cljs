@@ -2,6 +2,7 @@
   (:require
    [devcards.core]
    [emojinos.game :as game]
+   [emojinos.ai :as ai]
    [emojinos.ui.elements :refer [tile-el hand-el board-el]]
    [emojinos.ui.frame :refer [ui-component]])
   (:require-macros
