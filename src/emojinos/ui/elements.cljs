@@ -108,3 +108,45 @@
   (into [:div {:style {:display "flex"
                        :justify-content "space-between"}}]
         children))
+
+(defn rules-symbol-tile-el
+  [{:keys [base overlays]}]
+  [:div
+   (when base
+     (tile-el base))
+   (when overlays
+     (into [:div {:style {:position "relative"}}]
+           (for [[overlay transformation] overlays]
+             [:div {:style {:transform "scale(0.5)"
+                            :position "absolute"
+                            :left 35
+                            :bottom 0}}
+              (tile-el overlay)])))])
+
+
+(defn rules-editor-el
+  [& children]
+  [:div {:style {:margin-top 20}}
+   [:div {:style {:margin-bottom 10}}
+    "Game rules:"]
+   ;; 'add' buttton
+   (into [:div {:style {:display "flex"}}]
+         children)])
+
+;; need a tile picker el
+(defn rule-el
+  [{:keys [type] :as rule}]
+  [:div
+  ;; 'del' button
+   (case type
+     :adj
+     [:div {:style {:display "flex"}}
+      (rules-symbol-tile-el {:base {:emoji (:base rule)
+                                    :white? true}
+                             :overlays [[{:emoji (:adj rule)
+                                          :white? true}]]})
+      [:div {:style {:font-size 50
+                     :margin "0 15px 0 25px"}}
+       "="]
+      (tile-el {:emoji (:base-to rule)
+                :white? true})])])

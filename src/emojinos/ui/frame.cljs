@@ -14,7 +14,12 @@
            :p1 {:hand ["🍚" "🍄" "🌧️" "🔥" "🌷"]
                 :points 0}
            :p2 {:hand ["🍇" "🍇" "🍇" "🍇" "🍇"]
-                :points 0}}}))
+                :points 0}
+           :rules [{:type :adj
+                    :base "🌱"
+                    :adj "🌧️"
+                    :base-to "🌻"
+                    :consume-adj true}]}}))
 
 (reg-event-db
  :you-place-tile
@@ -32,6 +37,11 @@
  :board
  (fn [db _]
    (-> db :game :board)))
+
+(reg-sub
+ :rules
+ (fn [db _]
+   (-> db :game :rules)))
 
 (reg-sub
  :p1-hand
@@ -55,11 +65,12 @@
 
 (defn ui-component
   []
-  [:div
-   [:button {:on-click #(dispatch [:initialize])}
-    "reset state"]
-   [:button {:on-click #(dispatch [:pass-turn])}
-    "pass turn"]
+  [:div {:style {:margin 10}}
+   [:div {:style {:margin "10px 0"}}
+    [:button {:on-click #(dispatch [:initialize])}
+     "reset all!"]
+    [:button {:on-click #(dispatch [:pass-turn])}
+     "pass turn"]]
    (el/player-zone-el
     (el/hand-el {:hand @(subscribe [:p2-hand])
                  :playable? false
@@ -71,7 +82,10 @@
                  :white? true})
     (el/points-el @(subscribe [:p1-points])))
    (el/board-el {:board @(subscribe [:board])
-                 :place-tile! you-place-tile!})])
+                 :place-tile! you-place-tile!})
+   (el/rules-editor-el
+    (for [rule @(subscribe [:rules])]
+      (el/rule-el rule)))])
 
 (defonce _
   (dispatch-sync [:initialize]))
