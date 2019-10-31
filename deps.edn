@@ -2,6 +2,5 @@
         devcards {:mvn/version "0.2.6"}
         re-frame {:mvn/version "0.10.6"}
         reagent {:mvn/version "0.8.1"}
-        reanimated {:mvn/version "0.6.1"}
-        sputter {:local/root "../sputter-tomisme"}}
+        reanimated {:mvn/version "0.6.1"}}
  :paths ["src" "target" "resources"]}
