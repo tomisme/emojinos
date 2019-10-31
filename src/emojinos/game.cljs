@@ -31,9 +31,67 @@
      #{}
      board)))
 
-(defn resolve-board
-  [board]
-  board)
+(defn remove?
+  [tile board rules]
+  (let [emoji (first tile)]
+    (reduce (fn [accum rule]
+              (or accum
+                  (case (:type rule)
+                    :adj (and (= emoji (:adj rule))
+                              (:consume-adj rule)))))
+            false
+            rules)))
+
+(defn get-tile-at
+  [x y board]
+  (some (fn [tile]
+          (let [[_ x2 y2] tile]
+            (when (and (= x x2)
+                       (= y y2))
+              tile)))
+        board))
+
+(defn get-neighbors
+  [start-x start-y board]
+  (into #{}
+        (map (fn [[x y]]
+               (get-tile-at x y board))
+             (pos-neighbors start-x start-y))))
+
+(defn a-neighbor-matches?
+  [tile board rule]
+  (let [[_ x y] tile
+        {:keys [adj]} rule
+        neighbors (get-neighbors x y board)]
+    (reduce (fn [accum [emoji]]
+              (or accum
+                  (= emoji adj)))
+            false
+            neighbors)))
+
+(defn get-changes
+  [tile board rules]
+  (let [emoji (first tile)]
+    (reduce (fn [accum rule]
+              (conj accum
+                (case (:type rule)
+                  :adj (if (and (= emoji (:base rule))
+                                (a-neighbor-matches? tile board rule))
+                         (:base-to rule)
+                         nil))))
+            []
+            rules)))
+
+(defn get-transformations
+  [board rules]
+  (into #{}
+        (map (fn [tile]
+               (if (remove? tile board rules)
+                 [:remove tile]
+                 (if-let [changes (get-changes tile board rules)]
+                   [:changes tile changes]
+                   nil)))
+             board)))
 
 (defn remove-from-vec
   "Returns a new vector with the element at 'index' removed.

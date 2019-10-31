@@ -23,13 +23,18 @@
                      :white? (rand-nth [true false])})])))
 
 (def s1
-  {:board #{["🍚" 0 0 true]
+  {:board #{["🌧️" 0 0 true]
             ["🌷" 0 -1 false]
-            ["🍇" -1 0 true]
-            ["🍇" -2 0 false]}
+            ["🌱" -1 0 true]
+            ["🔥" -2 0 false]}
    :p1 ["🍚" "💞" "🍇" "🌱" "🌱"]
    :p2 ["🌻" "🍇" "🌱" "🌱" "🌱"]
-   :bag ["🌧️" "🌻" "🍄"]})
+   :bag ["🌧️" "🌻" "🍄"]
+   :rules [{:type :adj
+            :base "🌱"
+            :adj "🌧️"
+            :base-to "🌻"
+            :consume-adj true}]})
 
 (defcard board-details
   (let [b (:board s1)]
@@ -45,6 +50,27 @@
              :playable? true
              :white? true})
    (board-el {:board (:board s1)})])
+
+(defcard rules-test
+  (let [board (:board s1)
+        rules (:rules s1)]
+    {:rules rules
+     :tiles board
+
+     "the tile at [-2 0]"
+     (game/get-tile-at -2 0 board)
+     "neighbors of [-1 0]"
+     (game/get-neighbors -1 0 board)
+     "a neighbor of 🌱 matches rule #1?"
+     (game/a-neighbor-matches? ["🌱" -1 0 true]
+                               board
+                               (first rules))
+     "changes to 🌱"
+     (game/get-changes ["🌱" -1 0 true]
+                       board
+                       rules)
+     "transformations"
+     (game/get-transformations board rules)}))
 
 (defcard-rg frame-test
   [ui-component])
