@@ -72,5 +72,24 @@
      "transformations"
      (game/get-transformations board rules)}))
 
+(defcard-rg pairs
+  (let [tile-vec->tiles (fn [tile-vec]
+                          (map #(into [:div {:style {:margin 2}}]
+                                      [(tile-el {:emoji %
+                                                 :white? true
+                                                 :blank? (not %)})])
+
+                               tile-vec))
+        pair-el (fn [[left right]]
+                  [:div {:style {:display "flex"}}
+                   (tile-vec->tiles left)
+                   [:div {:style {:font-size 60
+                                  :margin "0 15px"}}
+                    "→"]
+                   (tile-vec->tiles right)])
+        pairs [[["🌱" "🌧️"] ["🌻" nil]]]]
+    (into [:div]
+          (map pair-el pairs))))
+
 (defcard-rg frame-test
   [ui-component])

@@ -25,7 +25,9 @@
        (on-drop! idx)))))
 
 (defn tile-el
-  [{:keys [emoji hand-index playable? target? on-drop! white?]}]
+  [{:keys [emoji hand-index
+           playable? target? white? blank?
+           on-drop!]}]
   [:div {:draggable playable?
          :on-drag-over prevent-default
          :on-drag-enter prevent-default
@@ -37,7 +39,10 @@
                  :user-select "none"
                  :-moz-user-select "none"
                  :cursor (when playable? "grab")
-                 :opacity (if target? 0.1 1)
+                 :opacity (cond
+                            target? 0.1
+                            blank? 0.25
+                            :else 1)
                  :background (if white? "white" "#262626")
                  :justify-content "center"
                  :border "2px solid"
