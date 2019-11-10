@@ -15,11 +15,7 @@
                 :points 0}
            :p2 {:hand ["🍇" "🍇" "🍇" "🍇" "🍇"]
                 :points 0}
-           :rules [{:type :adj
-                    :base "🌱"
-                    :adj "🌧️"
-                    :base-to "🌻"
-                    :consume-adj true}]}}))
+           :rules [[["🌱" "🌧️"] ["🌻" nil]]]}}))
 
 (reg-event-db
  :you-place-tile
@@ -84,8 +80,7 @@
    (el/board-el {:board @(subscribe [:board])
                  :place-tile! you-place-tile!})
    (el/rules-editor-el
-    (for [rule @(subscribe [:rules])]
-      (el/rule-el rule)))])
+    (el/rules-el @(subscribe [:rules])))])
 
 (defonce _
   (dispatch-sync [:initialize]))

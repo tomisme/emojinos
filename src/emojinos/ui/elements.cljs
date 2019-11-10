@@ -138,20 +138,20 @@
    (into [:div {:style {:display "flex"}}]
          children)])
 
-;; need a tile picker el
-(defn rule-el
-  [{:keys [type] :as rule}]
-  [:div
-  ;; 'del' button
-   (case type
-     :adj
-     [:div {:style {:display "flex"}}
-      (rules-symbol-tile-el {:base {:emoji (:base rule)
-                                    :white? true}
-                             :overlays [[{:emoji (:adj rule)
-                                          :white? true}]]})
-      [:div {:style {:font-size 50
-                     :margin "0 15px 0 25px"}}
-       "="]
-      (tile-el {:emoji (:base-to rule)
-                :white? true})])])
+(defn rules-el
+  [pairs]
+  (let [vec->tiles (fn [tile-vec]
+                     (map #(into [:div {:style {:margin 2}}]
+                                 [(tile-el {:emoji %
+                                            :white? true
+                                            :blank? (not %)})])
+                          tile-vec))
+        pair-el (fn [[left right]]
+                  [:div {:style {:display "flex"}}
+                   (vec->tiles left)
+                   [:div {:style {:font-size 60
+                                  :margin "0 15px"}}
+                    "→"]
+                   (vec->tiles right)])]
+    (into [:div]
+          (map pair-el pairs))))

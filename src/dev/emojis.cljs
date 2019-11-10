@@ -3,12 +3,12 @@
    [devcards.core]
    [emojinos.game :as game]
    [emojinos.ai :as ai]
-   [emojinos.ui.elements :refer [tile-el hand-el board-el]]
+   [emojinos.ui.elements :refer [tile-el hand-el board-el rules-el]]
    [emojinos.ui.frame :refer [ui-component]])
   (:require-macros
    [devcards.core :refer [defcard defcard-rg]]))
 
-(defcard-rg tile-test
+(defcard-rg tiles
   (into [:div {:style {:display "flex"
                        :flex-wrap "wrap"}}]
         (for [x [
@@ -29,19 +29,15 @@
             ["🔥" -2 0 false]}
    :p1 ["🍚" "💞" "🍇" "🌱" "🌱"]
    :p2 ["🌻" "🍇" "🌱" "🌱" "🌱"]
-   :bag ["🌧️" "🌻" "🍄"]
-   :rules [{:type :adj
-            :base "🌱"
-            :adj "🌧️"
-            :base-to "🌻"
-            :consume-adj true}]})
+   :bag #{"🌧️" "🌻" "🍄"}
+   :rules [[["🌱" "🌧️"] ["🌻" nil]]]})
 
-(defcard board-details
-  (let [b (:board s1)]
-    {'board b
-     'targets (game/targets b)}))
+(defcard state1 s1)
 
-(defcard-rg board-test
+(defcard state1-details
+  {'targets (game/targets (:board s1))})
+
+(defcard-rg state1-board-render
   [:div
    (hand-el {:hand (:p2 s1)
              :playable? false
@@ -51,7 +47,10 @@
              :white? true})
    (board-el {:board (:board s1)})])
 
-(defcard rules-test
+(defcard-rg state1-rules-render
+  (rules-el (:rules s1)))
+
+(defcard state1-rules-test
   (let [board (:board s1)
         rules (:rules s1)]
     {:rules rules
@@ -65,31 +64,12 @@
      (game/a-neighbor-matches? ["🌱" -1 0 true]
                                board
                                (first rules))
-     "changes to 🌱"
-     (game/get-changes ["🌱" -1 0 true]
-                       board
-                       rules)
-     "transformations"
-     (game/get-transformations board rules)}))
-
-(defcard-rg pairs
-  (let [tile-vec->tiles (fn [tile-vec]
-                          (map #(into [:div {:style {:margin 2}}]
-                                      [(tile-el {:emoji %
-                                                 :white? true
-                                                 :blank? (not %)})])
-
-                               tile-vec))
-        pair-el (fn [[left right]]
-                  [:div {:style {:display "flex"}}
-                   (tile-vec->tiles left)
-                   [:div {:style {:font-size 60
-                                  :margin "0 15px"}}
-                    "→"]
-                   (tile-vec->tiles right)])
-        pairs [[["🌱" "🌧️"] ["🌻" nil]]]]
-    (into [:div]
-          (map pair-el pairs))))
+     #_"changes to 🌱"
+     #_(game/get-changes ["🌱" -1 0 true]
+                         board
+                         rules)
+     #_"transformations"
+     #_(game/get-transformations board rules)}))
 
 (defcard-rg frame-test
   [ui-component])
