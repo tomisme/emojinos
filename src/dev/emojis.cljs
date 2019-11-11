@@ -26,11 +26,13 @@
   {:board #{["🌧️" 0 0 true]
             ["🌷" 0 -1 false]
             ["🌱" -1 0 true]
+            ["🌱" 1 0 true]
             ["🔥" -2 0 false]}
    :p1 ["🍚" "💞" "🍇" "🌱" "🌱"]
    :p2 ["🌻" "🍇" "🌱" "🌱" "🌱"]
    :bag #{"🌧️" "🌻" "🍄"}
-   :rules [[["🌱" "🌧️"] ["🌻" nil]]]})
+   :rules [[["🔥" "🌱" "🌧️" ] [nil "🌻" nil]]
+           [["🌱" "🌧️" ] ["🍇" nil]]]})
 
 (defcard state1 s1)
 
@@ -50,7 +52,7 @@
 (defcard-rg state1-rules-render
   (rules-el (:rules s1)))
 
-(defcard state1-rules-test
+(defcard state1-rules-test-details
   (let [board (:board s1)
         rules (:rules s1)]
     {:rules rules
@@ -58,18 +60,15 @@
 
      "the tile at [-2 0]"
      (game/get-tile-at -2 0 board)
+
      "neighbors of [-1 0]"
      (game/get-neighbors -1 0 board)
-     "a neighbor of 🌱 matches rule #1?"
-     (game/a-neighbor-matches? ["🌱" -1 0 true]
-                               board
-                               (first rules))
-     #_"changes to 🌱"
-     #_(game/get-changes ["🌱" -1 0 true]
-                         board
-                         rules)
-     #_"transformations"
-     #_(game/get-transformations board rules)}))
 
-(defcard-rg frame-test
+     "fx"
+     (game/get-board-fx board rules)
+
+     "new board"
+     (game/resolve-board board rules)}))
+
+(defcard-rg frame-render
   [ui-component])
