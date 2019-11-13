@@ -123,6 +123,7 @@
           nil
           board))
 
+;; TODO shouldn't return an empty set (e.g. when paths are walked to no effect)
 (defn get-first-tripped-rule-effects [board rules] ;; nil || #{} of effects
   (some (fn [rule]
           (get-rule-effects board rule))
@@ -145,7 +146,7 @@
   (loop [board starting-board
          chain []]
     (let [effects (get-first-tripped-rule-effects board rules)]
-      (if (not effects)
+      (if (empty? effects)
         chain
         (recur (apply-effects board effects)
                (conj chain effects))))))
@@ -153,26 +154,3 @@
 (defn resolve-board [board rules]
   (let [effects-chain (build-effects-chain board rules)]
     (reduce apply-effects board effects-chain)))
-
-
-
-
-
-
-
-
-
-
-(defn remove-from-vec
-  "Returns a new vector with the element at 'index' removed.
-
-  (remove-from-vec [:a :b :c] 1)  =>  [:a :c]"
-  [v index]
-  (vec (concat (subvec v 0 index) (subvec v (inc index)))))
-
-(defn place-tile
-  [state {:keys [player idx x y]}]
-  (let [emoji (get-in state [:p1 :hand idx])]
-    (-> state
-        (update-in [:p1 :hand] remove-from-vec idx)
-        (update :board conj [emoji x y (= :p1 player)]))))
