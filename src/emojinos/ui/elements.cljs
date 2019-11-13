@@ -43,7 +43,7 @@
                             target? 0.1
                             blank? 0.25
                             :else 1)
-                 :background (if white? "white" "#262626")
+                 :background (if (not target?) "white" "#262626")
                  :justify-content "center"
                  :border "2px solid"
                  :box-shadow "inset -2px -5px 0 #cab6b6"

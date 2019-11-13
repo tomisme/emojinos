@@ -23,16 +23,18 @@
                      :white? (rand-nth [true false])})])))
 
 (def s1
-  {:board #{["🌧️" 0 0 true]
-            ["🌷" 0 -1 false]
-            ["🌱" -1 0 true]
-            ["🌱" 1 0 true]
-            ["🔥" -2 0 false]}
+  {:board #{["🌧️" 0 0]
+            ["🌱" 0 1]
+            ["🌷" 0 -1]
+            ["🌱" -1 0]
+            ["🌱" 1 0]
+            ["🔥" -2 0]}
    :p1 ["🍚" "💞" "🍇" "🌱" "🌱"]
    :p2 ["🌻" "🍇" "🌱" "🌱" "🌱"]
    :bag #{"🌧️" "🌻" "🍄"}
-   :rules [[["🔥" "🌱" "🌧️" ] [nil "🌻" nil]]
-           [["🌱" "🌧️" ] ["🍇" nil]]]})
+   :rules [
+           [["🌈" "🌱"] [nil "🍇"]]
+           [["🔥" "🌱" "🌧️"] [nil "🌻" "🌈"]]]})
 
 (defcard state1 s1)
 
@@ -56,7 +58,7 @@
   (let [board (:board s1)
         rules (:rules s1)]
     {:rules rules
-     :tiles board
+     :board board
 
      "the tile at [-2 0]"
      (game/get-tile-at -2 0 board)
@@ -64,11 +66,14 @@
      "neighbors of [-1 0]"
      (game/get-neighbors -1 0 board)
 
-     "fx"
-     (game/get-board-fx board rules)
+     "effects chain"
+     (game/build-effects-chain board rules)
 
-     "new board"
+     "resolved board"
      (game/resolve-board board rules)}))
+
+(defcard-rg state1-board-post-rules-render
+  (board-el {:board (game/resolve-board (:board s1) (:rules s1))}))
 
 (defcard-rg frame-render
   [ui-component])
