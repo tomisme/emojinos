@@ -5,7 +5,17 @@
 ;; board = #{} of tiles
 ;; rule = [left right]
 ;; path = {} of :direction, :tiles, :walking?
-;; effect = {} of from => to
+;; effect = {} of tiles => emojis
+
+(def all-directions
+  [[0 1]
+   [1 0]
+   [0 -1]
+   [-1 0]])
+
+(defn positive-direction? [direction]
+  (or (= [0 1] direction)
+      (= [1 0] direction)))
 
 (defn pos-neighbors [x y]
   #{[(inc x) y]
@@ -70,24 +80,26 @@
                      (assoc path :walking? false)))))
              paths)))
 
-;; TODO do 'island' tiles draw paths correctly?
-(defn paths->effects [paths [rule-left rule-right]] ;; #{} of effects
+(defn paths->effects [paths [rule-left rule-right]] ;; => nil || #{} of effects
   (let [len (count rule-left)
         ->tiles (fn [tiles emojis]
                   (map-indexed (fn [idx tile]
                                  (nth emojis idx))
                                tiles))]
-    (reduce (fn [effect {:keys [tiles direction]}]
-              (if (= len (count tiles))
-                (conj effect (zipmap tiles
-                                     (if (or (= [0 1] direction)
-                                             (= [1 0] direction))
+    (reduce (fn [effects {:keys [tiles direction]}]
+              (if (< (count tiles) len)
+                effects
+                (let [effect (zipmap tiles
+                                     (if (positive-direction? direction)
                                        (->tiles tiles rule-right)
-                                       (->tiles tiles (reverse rule-right)))))
-                effect))
-            #{}
+                                       (->tiles tiles (reverse rule-right))))]
+                  (if effects
+                    (conj effects effect)
+                    (conj #{} effect)))))
+            nil
             paths)))
 
+;; TODO shouldn't return an empty set (e.g. when paths are walked to no effect)
 (defn get-tile-effects [board rule tile] ;; => nil || #{} of effects
   (when (root? rule tile)
     (let [[root-emoji root-x root-y] tile
@@ -99,16 +111,8 @@
                                 {:direction direction
                                  :tiles [tile]
                                  :walking? true})
-                              [[0 1]
-                               [1 0]
-                               [0 -1]
-                               [-1 0]]))]
+                              all-directions))]
         (if (= step total-steps)
-          #_{:board board
-             :rule rule
-             :base tile
-             :total-steps total-steps
-             :paths paths}
           (paths->effects paths rule)
           (recur (inc step)
                  (walk-paths board rule-left paths (inc step))))))))
@@ -123,7 +127,6 @@
           nil
           board))
 
-;; TODO shouldn't return an empty set (e.g. when paths are walked to no effect)
 (defn get-first-tripped-rule-effects [board rules] ;; nil || #{} of effects
   (some (fn [rule]
           (get-rule-effects board rule))
