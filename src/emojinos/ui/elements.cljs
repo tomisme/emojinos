@@ -21,7 +21,7 @@
        (prevent-default event)
        (on-drop! idx)))))
 
-(defn tile-el [{:keys [emoji hand-index
+(defn tile-el [{:keys [emoji hand-index color
                        playable? target? blank?
                        on-drop!]}]
   [:div {:draggable playable?
@@ -40,10 +40,19 @@
                             target? 0.1
                             blank? 0.25
                             :else 1)
-                 :background (if (not target?) "white" "#262626")
+                 ;; https://www.colourlovers.com/palette/1473/Ocean_Five
+                 :background (cond
+                               color (case color
+                                       :red "#CC333F"
+                                       :green "#EDC951"
+                                       :blue "#00A0B0")
+                               target? "#262626"
+                               :else "white")
                  :justify-content "center"
                  :border "2px solid"
-                 :box-shadow "inset -2px -5px 0 #cab6b6"
+                 :box-shadow (str "inset -2px -5px 0 " (if target?
+                                                         "rgba(255,255,255,0.4)"
+                                                         "rgba(0,0,0,0.25)"))
                  :border-radius 15
                  :width 70
                  :height 70}}

@@ -64,5 +64,13 @@
 (defcard-rg state1-board-post-rules-render
   (e/board-el {:board (g/resolve-board (:board s1) (:rules s1))}))
 
+(defcard-rg variables-render
+  [:div {:style {:display "flex"}}
+   (e/tile-el {:color :red})
+   [:span {:style {:margin 5}}]
+   (e/tile-el {:color :green})
+   [:span {:style {:margin 5}}]
+   (e/tile-el {:color :blue})])
+
 (defcard-rg frame-render
   [ui-component])
