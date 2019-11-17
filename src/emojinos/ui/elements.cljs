@@ -2,39 +2,36 @@
   (:require
    [emojinos.game :as game]))
 
-(defn- prevent-default
-  [e]
-  (.preventDefault e))
+(defn- prevent-default [event]
+  (.preventDefault event))
 
-(defn- hand-tile-drag-start-fn
-  [hand-index]
-  (fn [e]
-    (-> e
+(defn- hand-tile-drag-start-fn [hand-index]
+  (fn [event]
+    (-> event
         .-dataTransfer
         (.setData "text/plain" hand-index))))
 
-(defn- target-on-drop-fn
-  [on-drop!]
-  (fn [e]
-    (let [idx (-> e
+(defn- target-on-drop-fn [on-drop!]
+  (fn [event]
+    (let [idx (-> event
                   .-dataTransfer
                   (.getData "text/plain")
                   int)]
       (do
-       (prevent-default e)
+       (prevent-default event)
        (on-drop! idx)))))
 
-(defn tile-el
-  [{:keys [emoji hand-index
-           playable? target? white? blank?
-           on-drop!]}]
+(defn tile-el [{:keys [emoji hand-index
+                       playable? target? blank?
+                       on-drop!]}]
   [:div {:draggable playable?
          :on-drag-over prevent-default
          :on-drag-enter prevent-default
          :on-drag-start (when playable?
                           (hand-tile-drag-start-fn hand-index))
-         :on-drop (when target?
-                    (target-on-drop-fn on-drop!))
+         :on-drop (if target?
+                    (target-on-drop-fn on-drop!)
+                    prevent-default)
          :style {:display "flex"
                  :user-select "none"
                  :-moz-user-select "none"
@@ -55,8 +52,7 @@
                   :font-size 40}}
     emoji]])
 
-(defn board-el
-  [{:keys [board place-tile!]}]
+(defn board-el [{:keys [board place-tile!]}]
   (let [x-positions (map (fn [[_ x _]] x) board)
         y-positions (map (fn [[_ _ y]] y) board)
         max-left (js/Math.abs (apply min x-positions))
@@ -77,7 +73,7 @@
                                             (->px (inc max-down)))}}
                    (tile-el {:emoji emoji
                              :white? white?})])
-                (for [[x y] (game/targets board)]
+                (for [[x y] (game/get-targets board)]
                   [:div {:style {:position "absolute"
                                  :left (+ (->px x)
                                           (->px (inc max-left)))
@@ -89,8 +85,7 @@
                                                        :x x
                                                        :y y}))})])))))
 
-(defn hand-el
-  [{:keys [hand playable? white?]}]
+(defn hand-el [{:keys [hand playable? white?]}]
   (into [:div {:style {:display "flex"
                        :margin-bottom 15}}]
         (map-indexed (fn [idx emoji]
@@ -101,21 +96,18 @@
                                  :white? white?})])
                      hand)))
 
-(defn points-el
-  [i]
+(defn points-el [i]
   [:div {:style {:font-size 50
                  :font-weight 600
                  :margin "10px 20px 0 20px"}}
    i])
 
-(defn player-zone-el
-  [& children]
+(defn player-zone-el [& children]
   (into [:div {:style {:display "flex"
                        :justify-content "space-between"}}]
         children))
 
-(defn rules-symbol-tile-el
-  [{:keys [base overlays]}]
+(defn rules-symbol-tile-el [{:keys [base overlays]}]
   [:div
    (when base
      (tile-el base))
@@ -129,22 +121,21 @@
               (tile-el overlay)])))])
 
 
-(defn rules-editor-el
-  [& children]
+(defn rules-editor-el [& children]
   [:div {:style {:margin-top 20}}
    [:div {:style {:margin-bottom 10}}
     "Game rules:"]
-   ;; 'add' buttton
+   ;; TODO 'add' buttton
    (into [:div {:style {:display "flex"}}]
          children)])
 
-(defn rules-el
-  [pairs]
+(defn rules-el [pairs]
   (let [vec->tiles (fn [tile-vec]
-                     (map #(into [:div {:style {:margin 2}}]
-                                 [(tile-el {:emoji %
-                                            :white? true
-                                            :blank? (not %)})])
+                     (map (fn [emoji]
+                            [:div {:style {:margin 2}}
+                             (tile-el {:emoji emoji
+                                       :white? true
+                                       :blank? (not emoji)})])
                           tile-vec))
         pair-el (fn [[left right]]
                   [:div {:style {:display "flex"}}

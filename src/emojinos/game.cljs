@@ -13,37 +13,36 @@
    [0 -1]
    [-1 0]])
 
-(defn positive-direction? [direction]
+(defn pos-direction? [direction]
   (or (= [0 1] direction)
       (= [1 0] direction)))
 
-(defn pos-neighbors [x y]
-  #{[(inc x) y]
-    [x (inc y)]
-    [(dec x) y]
-    [x (dec y)]})
+(defn get-neighbors [x y]
+  [[(inc x) y]
+   [x (inc y)]
+   [(dec x) y]
+   [x (dec y)]])
 
-(defn filled-positions [board]
+(defn get-filled-positions [board] ;; => #{} of positions
   (into #{}
         (map (fn [[_ x y]]
                [x y])
              board)))
 
-(defn targets [board]
-  (let [filled (filled-positions board)]
-    (reduce
-     (fn [coll [_ x y]]
-       (loop [to-check (seq (pos-neighbors x y))
-              empty-neighbors #{}]
-           (if (empty? to-check)
-             (into coll empty-neighbors)
-             (let [checking (first to-check)]
-               (recur (rest to-check)
-                      (if (contains? filled checking)
-                        empty-neighbors
-                        (conj empty-neighbors checking)))))))
-     #{}
-     board)))
+(defn get-targets [board] ;; => #{} of positions
+  (let [filled-positions (get-filled-positions board)]
+    (reduce (fn [targets [_ x y]]
+              (loop [tiles-to-check (get-neighbors x y)
+                     empty-neighbors #{}]
+                (if (empty? tiles-to-check)
+                  (into targets empty-neighbors)
+                  (let [checking (first tiles-to-check)]
+                    (recur (rest tiles-to-check)
+                           (if (contains? filled-positions checking)
+                             empty-neighbors
+                             (conj empty-neighbors checking)))))))
+            #{}
+            board)))
 
 (defn get-tile-at [x y board] ;; => nil || tile
   (some (fn [tile]
@@ -53,86 +52,67 @@
               tile)))
         board))
 
-(defn get-neighbors [start-x start-y board]
-  (into #{}
-        (filter boolean
-                (map (fn [[x y]]
-                       (get-tile-at x y board))
-                     (pos-neighbors start-x start-y)))))
-
-(defn root? [rule tile]
+(defn root-tile? [rule tile]
   (let [[[root]] rule
         [emoji] tile]
     (= root emoji)))
 
-(defn walk-paths [board rule-left paths step] ;; => #{} of paths
-  (into #{}
-        (map (fn [{:keys [direction tiles walking?] :as path}]
-               (if (not walking?)
-                 (assoc path :walking? false)
-                 (let [[_ x y] (last tiles)
-                       [dx dy] direction
-                       next-tile (get-tile-at (+ x dx) (+ y dy) board)]
-                   (if (and next-tile
-                            (= (get next-tile 0)
-                               (get rule-left step)))
-                     (update path :tiles conj next-tile)
-                     (assoc path :walking? false)))))
-             paths)))
-
-(defn paths->effects [paths [rule-left rule-right]] ;; => nil || #{} of effects
-  (let [len (count rule-left)
-        ->tiles (fn [tiles emojis]
-                  (map-indexed (fn [idx tile]
-                                 (nth emojis idx))
-                               tiles))]
-    (reduce (fn [effects {:keys [tiles direction]}]
-              (if (< (count tiles) len)
-                effects
-                (let [effect (zipmap tiles
-                                     (if (positive-direction? direction)
-                                       (->tiles tiles rule-right)
-                                       (->tiles tiles (reverse rule-right))))]
-                  (if effects
-                    (conj effects effect)
-                    (conj #{} effect)))))
+(defn paths->effect [paths rule-right] ;; => nil || effect
+  (let [rule-size (count rule-right)]
+    (reduce (fn [effect {:keys [tiles direction]}]
+              (if (< (count tiles) rule-size)
+                effect
+                (let [path-effect (zipmap tiles
+                                          (if (pos-direction? direction)
+                                            rule-right
+                                            (reverse rule-right)))]
+                  (if effect
+                    (conj effect path-effect)
+                    path-effect))))
             nil
             paths)))
 
-;; TODO shouldn't return an empty set (e.g. when paths are walked to no effect)
-(defn get-tile-effects [board rule tile] ;; => nil || #{} of effects
-  (when (root? rule tile)
+(defn take-step-in-paths [board rule-left paths step] ;; => paths
+  (map (fn [{:keys [direction tiles walking?] :as path}]
+         (if (not walking?)
+           path
+           (let [[_ x y] (last tiles)
+                 [dx dy] direction
+                 next-tile (get-tile-at (+ x dx) (+ y dy) board)]
+             (if (and next-tile
+                      (= (get next-tile 0)
+                         (get rule-left step)))
+               (update path :tiles conj next-tile)
+               (assoc path :walking? false)))))
+       paths))
+
+(defn get-tile-effect [board rule tile] ;; => nil || effect
+  (when (root-tile? rule tile)
     (let [[root-emoji root-x root-y] tile
           [rule-left rule-right] rule
           total-steps (count rule-left)]
       (loop [step 0
-             paths (into #{}
-                         (map (fn [direction]
-                                {:direction direction
-                                 :tiles [tile]
-                                 :walking? true})
-                              all-directions))]
+             paths (map (fn [direction]
+                          {:direction direction
+                           :tiles [tile]
+                           :walking? true})
+                        all-directions)]
         (if (= step total-steps)
-          (paths->effects paths rule)
+          (paths->effect paths rule-right)
           (recur (inc step)
-                 (walk-paths board rule-left paths (inc step))))))))
+                 (take-step-in-paths board rule-left paths (inc step))))))))
 
-(defn get-rule-effects [board rule] ;; => nil || #{} of effects
-  (reduce (fn [rule-effects tile]
-            (if-let [effects (get-tile-effects board rule tile)]
-              (if rule-effects
-                (conj rule-effects effects)
-                (clojure.set/union #{} effects))
-              rule-effects))
+(defn get-rule-effect [board rule] ;; => nil || effect
+  (reduce (fn [rule-effect tile]
+            (if-let [tile-effect (get-tile-effect board rule tile)]
+              (if rule-effect
+                (conj rule-effect tile-effect)
+                tile-effect)
+              rule-effect))
           nil
           board))
 
-(defn get-first-tripped-rule-effects [board rules] ;; nil || #{} of effects
-  (some (fn [rule]
-          (get-rule-effects board rule))
-        rules))
-
-(defn apply-effect [starting-board effect]
+(defn apply-effect [starting-board effect] ;; => board
   (reduce (fn [board [tile emoji]]
             (if emoji
               (-> board
@@ -142,18 +122,15 @@
           starting-board
           effect))
 
-(defn apply-effects [board effects]
-  (reduce apply-effect board effects))
-
-(defn build-effects-chain [starting-board rules]
+(defn build-effects [starting-board rules]
   (loop [board starting-board
-         chain []]
-    (let [effects (get-first-tripped-rule-effects board rules)]
-      (if (empty? effects)
-        chain
-        (recur (apply-effects board effects)
-               (conj chain effects))))))
+         effects []]
+    (let [effect (some #(get-rule-effect board %)
+                       rules)]
+      (if (empty? effect)
+        effects
+        (recur (apply-effect board effect)
+               (conj effects effect))))))
 
 (defn resolve-board [board rules]
-  (let [effects-chain (build-effects-chain board rules)]
-    (reduce apply-effects board effects-chain)))
+  (reduce apply-effect board (build-effects board rules)))
