@@ -17,9 +17,8 @@
                   .-dataTransfer
                   (.getData "text/plain")
                   int)]
-      (do
-       (prevent-default event)
-       (on-drop! idx)))))
+      (prevent-default event)
+      (on-drop! idx))))
 
 (defn tile-el [{:keys [emoji hand-index color
                        playable? target? blank?
@@ -122,7 +121,7 @@
      (tile-el base))
    (when overlays
      (into [:div {:style {:position "relative"}}]
-           (for [[overlay transformation] overlays]
+           (for [[overlay _] overlays]
              [:div {:style {:transform "scale(0.5)"
                             :position "absolute"
                             :left 35

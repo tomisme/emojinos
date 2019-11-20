@@ -2,6 +2,7 @@
   (:require
    [re-frame.core :refer [dispatch dispatch-sync subscribe
                           reg-event-db reg-sub]]
+   [reanimated.core :as anim]
    [emojinos.ui.elements :as e]
    [emojinos.game :as g]))
 
@@ -27,13 +28,15 @@
   (vec (concat (subvec v 0 index) (subvec v (inc index)))))
 
 (defn place-tile
-  [state {:keys [player idx x y]}]
-  (let [emoji (get-in state [:p1 :hand idx])
-        rules (:rules state)]
-    (-> state
+  [game-state {:keys [player idx x y]}]
+  (let [emoji (get-in game-state [:p1 :hand idx])
+        {:keys [rules board]} game-state
+        new-board (conj board [emoji x y (= :p1 player)])]
+    (-> game-state
         (update-in [:p1 :hand] remove-from-vec idx)
-        (update :board conj [emoji x y (= :p1 player)])
-        (update :board g/resolve-board rules))))
+        (assoc :board new-board)
+        (assoc :intermidiates
+               (reductions g/apply-effect new-board (g/build-effects new-board rules))))))
 
 (reg-event-db
  :you-place-tile
@@ -45,6 +48,13 @@
 (defn you-place-tile!
   [{:keys [hand-index x y]}]
   (dispatch [:you-place-tile hand-index x y]))
+
+(reg-event-db
+ :finished-intermediates
+ (fn [db _]
+   (-> db
+       (update :game dissoc :intermidiates)
+       (update :game assoc :board (last (-> db :game :intermidiates))))))
 
 (reg-sub
  :board
@@ -76,6 +86,36 @@
  (fn [db _]
    (-> db :game :p2 :points)))
 
+(reg-sub
+ :intermidiates
+ (fn [db _]
+   (-> db :game :intermidiates)))
+
+(defn animated-board-timeline [intermediates]
+  (into [anim/timeline]
+        (interpose 1000
+                   (for [board intermediates]
+                     (e/board-el {:board board
+                                  :place-tile! #()})))))
+
+(defn board-component
+  []
+  (let [board @(subscribe [:board])
+        intermediates @(subscribe [:intermidiates])]
+    [:div
+     (if (not intermediates)
+       (e/board-el {:board board
+                    :place-tile! you-place-tile!})
+       (conj (animated-board-timeline intermediates)
+             #(dispatch [:finished-intermediates])))
+     [:div
+      "intermediates"
+      [:pre [:code (str intermediates)]]]
+     [:div
+      "board"
+      [:pre [:code (str board)]]]]))
+
+
 (defn ui-component
   []
   [:div {:style {:margin 10}}
@@ -94,8 +134,7 @@
                  :playable? true
                  :white? true})
     (e/points-el @(subscribe [:p1-points])))
-   (e/board-el {:board @(subscribe [:board])
-                :place-tile! you-place-tile!})
+   [board-component]
    (e/rules-editor-el
     (e/rules-el @(subscribe [:rules])))])
 

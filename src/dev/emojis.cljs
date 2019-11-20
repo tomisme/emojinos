@@ -1,8 +1,7 @@
 (ns dev.emojis
   (:require
-   [devcards.core]
+   [reagent.core :as r]
    [emojinos.game :as g]
-   [emojinos.ai :as ai]
    [emojinos.ui.elements :as e]
    [emojinos.ui.frame :refer [ui-component]]
    [reanimated.core :as anim])
@@ -55,14 +54,50 @@
      "effects"
      (g/build-effects board rules)
 
-     #_"reductions"
-     #_(reductions g/apply-effect board (g/build-effects board rules))
+     "reductions"
+     (reductions g/apply-effect board (g/build-effects board rules))
 
      "resolved board"
-     (g/resolve-board board rules)}))
+     (g/resolve-board board rules)
+
+     "double resolution reductions"
+     (reductions g/apply-effect
+                 (g/resolve-board board rules)
+                 (g/build-effects (g/resolve-board board rules) rules))}))
 
 (defcard-rg state1-board-post-rules-render
   (e/board-el {:board (g/resolve-board (:board s1) (:rules s1))}))
+
+(defn broken-swapper [data]
+  (if (= :a (:letter @data))
+    [:div
+     [anim/timeline
+      [:span "is A"]
+      1000
+      #(swap! data assoc :letter :b)]]
+    [:div
+     [anim/timeline
+      [:span "is B"]
+      1000
+      #(swap! data assoc :letter :a)]]))
+
+(defcard-rg broken-swap
+  (fn [data]
+    [broken-swapper data])
+  (r/atom {:letter :a})
+  {:inspect-data true})
+
+(defcard-rg animate
+  (let [board #{["🔥" 0 0]
+                ["🌱" 1 0]
+                ["🌱" 2 0]}
+        rules [[["🔥" "🌱"] ["🔥" "🔥"]]]
+        effects (g/build-effects board rules)]
+    (into [anim/timeline]
+          (interpose 1000
+                     (for [board (reductions g/apply-effect board effects)]
+                       (e/board-el {:board board
+                                    :place-tile! #()}))))))
 
 (defcard-rg variables-render
   [:div {:style {:display "flex"}}

@@ -1,4 +1,5 @@
 .cpcache
+.cache
 target
 .rebel_readline_history
 out
